@@ -37,6 +37,7 @@ public class InNode implements TreeNode {
   private final Set<String> stringValues;
   private final Set<byte[]> binaryValues;
   private final Field field;
+  private final TreeNode input;
 
   private InNode(Set<Integer> values, Set<Long> longValues, Set<String> stringValues, Set<byte[]>
           binaryValues, Field field) {
@@ -45,31 +46,56 @@ public class InNode implements TreeNode {
     this.stringValues = stringValues;
     this.binaryValues = binaryValues;
     this.field = field;
+    this.input = TreeBuilder.makeField(field);
+  }
+
+  private InNode(Set<Integer> values, Set<Long> longValues, Set<String> stringValues, Set<byte[]>
+          binaryValues, TreeNode node) {
+    this.intValues = values;
+    this.longValues = longValues;
+    this.stringValues = stringValues;
+    this.binaryValues = binaryValues;
+    this.field = null;
+    this.input = node;
   }
 
   public static InNode makeIntInExpr(Field field, Set<Integer> intValues) {
-    return new InNode(intValues, null, null, null ,field);
+    return new InNode(intValues, null, null, null, field);
+  }
+
+  public static InNode makeIntInExpr(TreeNode node, Set<Integer> intValues) {
+    return new InNode(intValues, null, null, null, node);
   }
 
   public static InNode makeLongInExpr(Field field, Set<Long> longValues) {
-    return new InNode(null, longValues, null, null ,field);
+    return new InNode(null, longValues, null, null, field);
+  }
+
+  public static InNode makeLongInExpr(TreeNode node, Set<Long> longValues) {
+    return new InNode(null, longValues, null, null, node);
   }
 
   public static InNode makeStringInExpr(Field field, Set<String> stringValues) {
-    return new InNode(null, null, stringValues, null ,field);
+    return new InNode(null, null, stringValues, null, field);
+  }
+
+  public static InNode makeStringInExpr(TreeNode node, Set<String> stringValues) {
+    return new InNode(null, null, stringValues, null, node);
   }
 
   public static InNode makeBinaryInExpr(Field field, Set<byte[]> binaryValues) {
-    return new InNode(null, null, null, binaryValues ,field);
+    return new InNode(null, null, null, binaryValues, field);
+  }
+
+  public static InNode makeBinaryInExpr(TreeNode node, Set<byte[]> binaryValues) {
+    return new InNode(null, null, null, binaryValues, node);
   }
 
   @Override
   public GandivaTypes.TreeNode toProtobuf() throws GandivaException {
     GandivaTypes.InNode.Builder inNode = GandivaTypes.InNode.newBuilder();
 
-    GandivaTypes.FieldNode.Builder fieldNode = GandivaTypes.FieldNode.newBuilder();
-    fieldNode.setField(ArrowTypeHelper.arrowFieldToProtobuf(field));
-    inNode.setField(fieldNode);
+    inNode.setNode(input.toProtobuf());
 
     if (intValues != null) {
       GandivaTypes.IntConstants.Builder intConstants = GandivaTypes.IntConstants.newBuilder();

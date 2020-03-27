@@ -18,7 +18,6 @@
 package org.apache.arrow.adapter.common;
 
 import java.io.IOException;
-import java.lang.UnsupportedOperationException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.arrow.memory.BufferAllocator;

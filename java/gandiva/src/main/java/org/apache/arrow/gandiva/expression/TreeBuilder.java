@@ -197,9 +197,19 @@ public class TreeBuilder {
     return InNode.makeIntInExpr(resultField, intValues);
   }
 
+  public static TreeNode makeInExpressionInt32(TreeNode node,
+                                               Set<Integer> intValues) {
+    return InNode.makeIntInExpr(node, intValues);
+  }
+
   public static TreeNode makeInExpressionBigInt(Field resultField,
                                                Set<Long> longValues) {
     return InNode.makeLongInExpr(resultField, longValues);
+  }
+
+  public static TreeNode makeInExpressionBigInt(TreeNode node,
+                                               Set<Long> longValues) {
+    return InNode.makeLongInExpr(node, longValues);
   }
 
   public static TreeNode makeInExpressionString(Field resultField,
@@ -207,8 +217,18 @@ public class TreeBuilder {
     return InNode.makeStringInExpr(resultField, stringValues);
   }
 
+  public static TreeNode makeInExpressionString(TreeNode resultNode,
+                                                Set<String> stringValues) {
+    return InNode.makeStringInExpr(resultNode, stringValues);
+  }
+
   public static TreeNode makeInExpressionBinary(Field resultField,
                                                 Set<byte[]> binaryValues) {
     return InNode.makeBinaryInExpr(resultField, binaryValues);
+  }
+
+  public static TreeNode makeInExpressionBinary(TreeNode node,
+                                                Set<byte[]> binaryValues) {
+    return InNode.makeBinaryInExpr(node, binaryValues);
   }
 }
