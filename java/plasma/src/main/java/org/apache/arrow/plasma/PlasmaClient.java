@@ -123,6 +123,18 @@ public class PlasmaClient implements ObjectStoreLink {
     return PlasmaClientJNI.evict(conn, numBytes);
   }
 
+  public ByteBuffer create(byte[] objectId, int length)
+          throws DuplicateObjectException, PlasmaOutOfMemoryException {
+    ByteBuffer buf = PlasmaClientJNI.create(conn, objectId, length, null);
+    return buf;
+  }
+
+  public ByteBuffer getByteBuffer(byte[] objectId, int timeoutMs, boolean isMetadata) {
+    byte[][] objectIds = new byte[][]{objectId};
+    ByteBuffer[][] bufs = PlasmaClientJNI.get(conn, objectIds, timeoutMs);
+    return bufs[0][isMetadata ? 1 : 0];
+  }
+
   // wrapper methods --------------------
 
   /**
@@ -174,5 +186,25 @@ public class PlasmaClient implements ObjectStoreLink {
   @Override
   public boolean contains(byte[] objectId) {
     return PlasmaClientJNI.contains(conn, objectId);
+  }
+
+  /**
+   * List all object stored in PlasmaStore.
+   * 
+   */
+  @Override
+  public byte[][] list() {
+    return PlasmaClientJNI.list(conn);
+  }
+  
+  /**
+   * Check if the object is present and has been sealed in the PlasmaStore.
+   *
+   * @param metrics used to return metrics, array size is 4, elements are: total memory size,
+   * used memory size, total external size, used external size.
+   */
+  @Override
+  public int metrics(long[] metrics) {
+    return PlasmaClientJNI.metrics(conn, metrics);
   }
 }

@@ -22,10 +22,6 @@
 
 #include "arrow/util/ubsan.h"
 
-#include "plasma/plasma_generated.h"
-
-namespace fb = plasma::flatbuf;
-
 namespace plasma {
 
 namespace {

@@ -28,14 +28,6 @@ cpp/src/generated/parquet_constants.cpp
 cpp/src/generated/parquet_constants.h
 cpp/src/generated/parquet_types.cpp
 cpp/src/generated/parquet_types.h
-cpp/src/plasma/thirdparty/ae/ae.c
-cpp/src/plasma/thirdparty/ae/ae.h
-cpp/src/plasma/thirdparty/ae/ae_epoll.c
-cpp/src/plasma/thirdparty/ae/ae_evport.c
-cpp/src/plasma/thirdparty/ae/ae_kqueue.c
-cpp/src/plasma/thirdparty/ae/ae_select.c
-cpp/src/plasma/thirdparty/ae/config.h
-cpp/src/plasma/thirdparty/ae/zmalloc.h
 cpp/src/plasma/thirdparty/dlmalloc.c
 cpp/thirdparty/flatbuffers/include/flatbuffers/base.h
 cpp/thirdparty/flatbuffers/include/flatbuffers/flatbuffers.h

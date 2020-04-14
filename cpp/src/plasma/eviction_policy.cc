@@ -16,6 +16,7 @@
 // under the License.
 
 #include "plasma/eviction_policy.h"
+#include "arrow/util/logging.h"
 #include "plasma/plasma_allocator.h"
 
 #include <algorithm>
@@ -24,8 +25,11 @@
 namespace plasma {
 
 void LRUCache::Add(const ObjectID& key, int64_t size) {
+  std::lock_guard<std::mutex> lock(cache_mtx_);  
   auto it = item_map_.find(key);
-  ARROW_CHECK(it == item_map_.end());
+  // this obejct already in list
+  if (it != item_map_.end())
+    return;
   // Note that it is important to use a list so the iterators stay valid.
   item_list_.emplace_front(key, size);
   item_map_.emplace(key, item_list_.begin());
@@ -33,6 +37,7 @@ void LRUCache::Add(const ObjectID& key, int64_t size) {
 }
 
 int64_t LRUCache::Remove(const ObjectID& key) {
+  std::lock_guard<std::mutex> lock(cache_mtx_);  
   auto it = item_map_.find(key);
   if (it == item_map_.end()) {
     return -1;
@@ -97,15 +102,12 @@ int64_t EvictionPolicy::ChooseObjectsToEvict(int64_t num_bytes_required,
                                              std::vector<ObjectID>* objects_to_evict) {
   int64_t bytes_evicted =
       cache_.ChooseObjectsToEvict(num_bytes_required, objects_to_evict);
-  // Update the LRU cache.
-  for (auto& object_id : *objects_to_evict) {
-    cache_.Remove(object_id);
-  }
   return bytes_evicted;
 }
 
 void EvictionPolicy::ObjectCreated(const ObjectID& object_id, Client* client,
                                    bool is_create) {
+  std::lock_guard<std::mutex> lock(mtx);  
   cache_.Add(object_id, GetObjectSize(object_id));
 }
 
@@ -151,8 +153,20 @@ void EvictionPolicy::EndObjectAccess(const ObjectID& object_id) {
   pinned_memory_bytes_ -= size;
 }
 
+void EvictionPolicy::AddObject(const ObjectID &object_id, int64_t size) {
+  std::lock_guard<std::mutex> lock(mtx);
+  cache_.Add(object_id, size);
+}
+
+void EvictionPolicy::RemoveObject(ObjectID& object_id) {
+  // If the object is in the LRU cache, remove it.
+  std::lock_guard<std::mutex> lock(mtx);  
+  cache_.Remove(object_id);
+}
+
 void EvictionPolicy::RemoveObject(const ObjectID& object_id) {
   // If the object is in the LRU cache, remove it.
+  std::lock_guard<std::mutex> lock(mtx);  
   cache_.Remove(object_id);
 }
 

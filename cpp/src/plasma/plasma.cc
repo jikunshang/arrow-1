@@ -16,16 +16,8 @@
 // under the License.
 
 #include "plasma/plasma.h"
-
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#include "plasma/common.h"
 #include "plasma/common_generated.h"
-#include "plasma/protocol.h"
-
-namespace fb = plasma::flatbuf;
+#include "plasma/common.h"
 
 namespace plasma {
 
@@ -89,6 +81,7 @@ std::unique_ptr<uint8_t[]> CreatePlasmaNotificationBuffer(
 
 ObjectTableEntry* GetObjectTableEntry(PlasmaStoreInfo* store_info,
                                       const ObjectID& object_id) {
+  std::lock_guard<std::mutex> lock_guard(entry_mtx);
   auto it = store_info->objects.find(object_id);
   if (it == store_info->objects.end()) {
     return NULL;

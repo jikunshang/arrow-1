@@ -53,4 +53,8 @@ public class PlasmaClientJNI {
 
   public static native long evict(long conn, long numBytes);
 
+  public static native byte[][] list(long conn);
+
+  public static native int metrics(long conn, long[] metrics);
+
 }

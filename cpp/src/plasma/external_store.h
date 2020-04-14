@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "plasma/client.h"
+#include "plasma/eviction_policy.h"
 
 namespace plasma {
 
@@ -72,6 +73,24 @@ class ExternalStore {
   /// \return The return status.
   virtual Status Get(const std::vector<ObjectID>& ids,
                      std::vector<std::shared_ptr<Buffer>> buffers) = 0;
+
+  virtual Status Get(const std::vector<ObjectID> &ids,
+                           std::vector<std::shared_ptr<Buffer>> buffers,
+                           ObjectTableEntry *entry) = 0;
+  
+  virtual Status Get(const ObjectID id, ObjectTableEntry *entry) = 0;
+
+  /// This method will be called when check an evicted object whether still 
+  /// in the external store.
+  /// This API is experimental and might change in the future.
+  ///
+  /// \param id The ID of the objects to get.
+  /// \return The return status.
+  virtual Status Exist(ObjectID id) = 0;
+
+  virtual Status RegisterEvictionPolicy(EvictionPolicy* eviction_policy) = 0;
+
+  virtual void Metrics(int64_t* memory_total, int64_t* memory_used) = 0;
 };
 
 class ExternalStores {

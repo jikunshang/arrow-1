@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <mutex>
 
 #include "plasma/common.h"
 #include "plasma/plasma.h"
@@ -87,6 +88,8 @@ class LRUCache {
   int64_t num_evictions_total_;
   /// The number of bytes evicted from this cache.
   int64_t bytes_evicted_total_;
+  /// mutex for multi thread race condition
+  std::mutex cache_mtx_;
 };
 
 /// The eviction policy.
@@ -97,7 +100,7 @@ class EvictionPolicy {
   /// \param store_info Information about the Plasma store that is exposed
   ///        to the eviction policy.
   /// \param max_size Max size in bytes total of objects to store.
-  explicit EvictionPolicy(PlasmaStoreInfo* store_info, int64_t max_size);
+  explicit EvictionPolicy(PlasmaStoreInfo* store_info, int64_t max_size = 1000000000);
 
   /// Destroy an eviction policy.
   virtual ~EvictionPolicy() {}
@@ -111,6 +114,10 @@ class EvictionPolicy {
   /// \param client The pointer to the client.
   /// \param is_create Whether we are creating a new object (vs reading an object).
   virtual void ObjectCreated(const ObjectID& object_id, Client* client, bool is_create);
+
+  virtual void RemoveObject(ObjectID &objecct_id) ;
+
+  virtual void AddObject(const ObjectID &object_id, int64_t size);
 
   /// Set quota for a client.
   ///
@@ -193,6 +200,12 @@ class EvictionPolicy {
   /// Returns debugging information for this eviction policy.
   virtual std::string DebugString() const;
 
+  virtual int64_t RemainingCapacity() const {return cache_.RemainingCapacity();}
+
+  virtual int64_t Capacity() const {return cache_.Capacity(); }
+
+  virtual PlasmaStoreInfo* getStoreInfo() {return store_info_;}
+
  protected:
   /// Returns the size of the object
   int64_t GetObjectSize(const ObjectID& object_id) const;
@@ -204,6 +217,8 @@ class EvictionPolicy {
   PlasmaStoreInfo* store_info_;
   /// Datastructure for the LRU cache.
   LRUCache cache_;
+  /// mutex for multi thread race condition
+  std::mutex mtx;
 };
 
 }  // namespace plasma

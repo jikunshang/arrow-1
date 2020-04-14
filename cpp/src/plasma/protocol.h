@@ -23,15 +23,16 @@
 #include <vector>
 
 #include "arrow/status.h"
+#include "plasma/io/connection.h"
 #include "plasma/plasma.h"
 #include "plasma/plasma_generated.h"
 
 namespace plasma {
 
 using arrow::Status;
-
-using flatbuf::MessageType;
 using flatbuf::PlasmaError;
+using io::ClientConnection;
+using io::ServerConnection;
 
 template <class T>
 bool VerifyFlatbuffer(T* object, const uint8_t* data, size_t size) {
@@ -39,37 +40,26 @@ bool VerifyFlatbuffer(T* object, const uint8_t* data, size_t size) {
   return object->Verify(verifier);
 }
 
-flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>
-ToFlatbuffer(flatbuffers::FlatBufferBuilder* fbb, const ObjectID* object_ids,
-             int64_t num_objects);
-
-flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<flatbuffers::String>>>
-ToFlatbuffer(flatbuffers::FlatBufferBuilder* fbb,
-             const std::vector<std::string>& strings);
-
-flatbuffers::Offset<flatbuffers::Vector<int64_t>> ToFlatbuffer(
-    flatbuffers::FlatBufferBuilder* fbb, const std::vector<int64_t>& data);
-
-/* Plasma receive message. */
-
-Status PlasmaReceive(int sock, MessageType message_type, std::vector<uint8_t>* buffer);
-
 /* Set options messages. */
 
+// TODO(suquark): Get rid of raw socket handle
 Status SendSetOptionsRequest(int sock, const std::string& client_name,
                              int64_t output_memory_limit);
 
 Status ReadSetOptionsRequest(const uint8_t* data, size_t size, std::string* client_name,
                              int64_t* output_memory_quota);
 
+// TODO(suquark): Get rid of raw socket handle
 Status SendSetOptionsReply(int sock, PlasmaError error);
 
 Status ReadSetOptionsReply(const uint8_t* data, size_t size);
 
 /* Debug string messages. */
 
+// TODO(suquark): Get rid of raw socket handle
 Status SendGetDebugStringRequest(int sock);
 
+// TODO(suquark): Get rid of raw socket handle
 Status SendGetDebugStringReply(int sock, const std::string& debug_string);
 
 Status ReadGetDebugStringReply(const uint8_t* data, size_t size,
@@ -84,8 +74,9 @@ Status ReadCreateRequest(const uint8_t* data, size_t size, ObjectID* object_id,
                          bool* evict_if_full, int64_t* data_size, int64_t* metadata_size,
                          int* device_num);
 
-Status SendCreateReply(int sock, ObjectID object_id, PlasmaObject* object,
-                       PlasmaError error, int64_t mmap_size);
+Status SendCreateReply(const std::shared_ptr<ClientConnection>& client,
+                       ObjectID object_id, PlasmaObject* object, PlasmaError error,
+                       int64_t mmap_size);
 
 Status ReadCreateReply(const uint8_t* data, size_t size, ObjectID* object_id,
                        PlasmaObject* object, int* store_fd, int64_t* mmap_size);
@@ -97,12 +88,12 @@ Status SendCreateAndSealRequest(int sock, const ObjectID& object_id, bool evict_
 Status ReadCreateAndSealRequest(const uint8_t* data, size_t size, ObjectID* object_id,
                                 bool* evict_if_full, std::string* object_data,
                                 std::string* metadata, std::string* digest);
-
-Status SendCreateAndSealBatchRequest(int sock, const std::vector<ObjectID>& object_ids,
-                                     bool evict_if_full,
-                                     const std::vector<std::string>& data,
-                                     const std::vector<std::string>& metadata,
-                                     const std::vector<std::string>& digests);
+// // TODO(suquark): Replace raw socket with client handle.
+// Status SendCreateAndSealBatchRequest(int sock, const std::vector<ObjectID>& object_ids,
+//                                      bool evict_if_full,
+//                                      const std::vector<std::string>& data,
+//                                      const std::vector<std::string>& metadata,
+//                                      const std::vector<std::string>& digests);
 
 Status ReadCreateAndSealBatchRequest(const uint8_t* data, size_t size,
                                      std::vector<ObjectID>* object_id,
@@ -111,7 +102,8 @@ Status ReadCreateAndSealBatchRequest(const uint8_t* data, size_t size,
                                      std::vector<std::string>* metadata,
                                      std::vector<std::string>* digests);
 
-Status SendCreateAndSealReply(int sock, PlasmaError error);
+// TODO(suquark): Replace raw socket with client handle.
+// Status SendCreateAndSealBatchReply(int sock, PlasmaError error);
 
 Status ReadCreateAndSealReply(const uint8_t* data, size_t size);
 
@@ -119,34 +111,42 @@ Status SendCreateAndSealBatchReply(int sock, PlasmaError error);
 
 Status ReadCreateAndSealBatchReply(const uint8_t* data, size_t size);
 
-Status SendAbortRequest(int sock, ObjectID object_id);
+Status ReadCreateAndSealReply(const uint8_t* data, size_t size);
+
+Status SendAbortRequest(const std::shared_ptr<ServerConnection>& client,
+                        ObjectID object_id);
 
 Status ReadAbortRequest(const uint8_t* data, size_t size, ObjectID* object_id);
 
-Status SendAbortReply(int sock, ObjectID object_id);
+Status SendAbortReply(const std::shared_ptr<ClientConnection>& client,
+                      ObjectID object_id);
 
 Status ReadAbortReply(const uint8_t* data, size_t size, ObjectID* object_id);
 
 /* Plasma Seal message functions. */
 
-Status SendSealRequest(int sock, ObjectID object_id, const std::string& digest);
+Status SendSealRequest(const std::shared_ptr<ServerConnection>& client,
+                       ObjectID object_id, unsigned char* digest);
 
 Status ReadSealRequest(const uint8_t* data, size_t size, ObjectID* object_id,
                        std::string* digest);
 
-Status SendSealReply(int sock, ObjectID object_id, PlasmaError error);
+Status SendSealReply(const std::shared_ptr<ClientConnection>& client, ObjectID object_id,
+                     PlasmaError error);
 
 Status ReadSealReply(const uint8_t* data, size_t size, ObjectID* object_id);
 
 /* Plasma Get message functions. */
 
-Status SendGetRequest(int sock, const ObjectID* object_ids, int64_t num_objects,
+Status SendGetRequest(const std::shared_ptr<ServerConnection>& client,
+                      const ObjectID* object_ids, int64_t num_objects,
                       int64_t timeout_ms);
 
 Status ReadGetRequest(const uint8_t* data, size_t size, std::vector<ObjectID>& object_ids,
                       int64_t* timeout_ms);
 
-Status SendGetReply(int sock, ObjectID object_ids[],
+Status SendGetReply(const std::shared_ptr<ClientConnection>& client,
+                    ObjectID object_ids[],
                     std::unordered_map<ObjectID, PlasmaObject>& plasma_objects,
                     int64_t num_objects, const std::vector<int>& store_fds,
                     const std::vector<int64_t>& mmap_sizes);
@@ -157,22 +157,26 @@ Status ReadGetReply(const uint8_t* data, size_t size, ObjectID object_ids[],
 
 /* Plasma Release message functions. */
 
-Status SendReleaseRequest(int sock, ObjectID object_id);
+Status SendReleaseRequest(const std::shared_ptr<ServerConnection>& client,
+                          ObjectID object_id);
 
 Status ReadReleaseRequest(const uint8_t* data, size_t size, ObjectID* object_id);
 
-Status SendReleaseReply(int sock, ObjectID object_id, PlasmaError error);
+Status SendReleaseReply(const std::shared_ptr<ClientConnection>& client,
+                        ObjectID object_id, PlasmaError error);
 
 Status ReadReleaseReply(const uint8_t* data, size_t size, ObjectID* object_id);
 
 /* Plasma Delete objects message functions. */
 
-Status SendDeleteRequest(int sock, const std::vector<ObjectID>& object_ids);
+Status SendDeleteRequest(const std::shared_ptr<ServerConnection>& client,
+                         const std::vector<ObjectID>& object_ids);
 
 Status ReadDeleteRequest(const uint8_t* data, size_t size,
                          std::vector<ObjectID>* object_ids);
 
-Status SendDeleteReply(int sock, const std::vector<ObjectID>& object_ids,
+Status SendDeleteReply(const std::shared_ptr<ClientConnection>& client,
+                       const std::vector<ObjectID>& object_ids,
                        const std::vector<PlasmaError>& errors);
 
 Status ReadDeleteReply(const uint8_t* data, size_t size,
@@ -181,70 +185,83 @@ Status ReadDeleteReply(const uint8_t* data, size_t size,
 
 /* Plasma Contains message functions. */
 
-Status SendContainsRequest(int sock, ObjectID object_id);
+Status SendContainsRequest(const std::shared_ptr<ServerConnection>& client,
+                           ObjectID object_id);
 
 Status ReadContainsRequest(const uint8_t* data, size_t size, ObjectID* object_id);
 
-Status SendContainsReply(int sock, ObjectID object_id, bool has_object);
+Status SendContainsReply(const std::shared_ptr<ClientConnection>& client,
+                         ObjectID object_id, bool has_object);
 
 Status ReadContainsReply(const uint8_t* data, size_t size, ObjectID* object_id,
                          bool* has_object);
 
 /* Plasma List message functions. */
 
-Status SendListRequest(int sock);
+Status SendListRequest(const std::shared_ptr<ServerConnection>& client);
 
 Status ReadListRequest(const uint8_t* data, size_t size);
 
-Status SendListReply(int sock, const ObjectTable& objects);
+Status SendListReply(const std::shared_ptr<ClientConnection>& client,
+                     const ObjectTable& objects);
 
 Status ReadListReply(const uint8_t* data, size_t size, ObjectTable* objects);
 
 /* Plasma Connect message functions. */
 
-Status SendConnectRequest(int sock);
+Status SendConnectRequest(const std::shared_ptr<ServerConnection>& client);
 
 Status ReadConnectRequest(const uint8_t* data, size_t size);
 
-Status SendConnectReply(int sock, int64_t memory_capacity);
+Status SendConnectReply(const std::shared_ptr<ClientConnection>& client,
+                        int64_t memory_capacity);
 
 Status ReadConnectReply(const uint8_t* data, size_t size, int64_t* memory_capacity);
 
 /* Plasma Evict message functions (no reply so far). */
 
-Status SendEvictRequest(int sock, int64_t num_bytes);
+Status SendEvictRequest(const std::shared_ptr<ServerConnection>& client,
+                        int64_t num_bytes);
 
 Status ReadEvictRequest(const uint8_t* data, size_t size, int64_t* num_bytes);
 
-Status SendEvictReply(int sock, int64_t num_bytes);
+Status SendEvictReply(const std::shared_ptr<ClientConnection>& client, int64_t num_bytes);
 
 Status ReadEvictReply(const uint8_t* data, size_t size, int64_t& num_bytes);
 
-/* Plasma Subscribe message functions. */
-
-Status SendSubscribeRequest(int sock);
-
 /* Data messages. */
 
-Status SendDataRequest(int sock, ObjectID object_id, const char* address, int port);
+Status SendDataRequest(const std::shared_ptr<ServerConnection>& client,
+                       ObjectID object_id, const char* address, int port);
 
 Status ReadDataRequest(const uint8_t* data, size_t size, ObjectID* object_id,
                        char** address, int* port);
 
-Status SendDataReply(int sock, ObjectID object_id, int64_t object_size,
-                     int64_t metadata_size);
+Status SendDataReply(const std::shared_ptr<ClientConnection>& client, ObjectID object_id,
+                     int64_t object_size, int64_t metadata_size);
 
 Status ReadDataReply(const uint8_t* data, size_t size, ObjectID* object_id,
                      int64_t* object_size, int64_t* metadata_size);
 
+Status SendMetricsRequest(const std::shared_ptr<ServerConnection>& client);
+
+Status ReadMetricsRequest(const uint8_t* data, size_t size);
+
+Status SendMetricsReply(const std::shared_ptr<ServerConnection>& client,
+                        const PlasmaMetrics* metrics);
+
+Status ReadMetricsReply(const uint8_t* data, size_t size, PlasmaMetrics* metrics);
+
 /* Plasma refresh LRU cache functions. */
 
-Status SendRefreshLRURequest(int sock, const std::vector<ObjectID>& object_ids);
+// TODO: Replace raw socket with client handle.
+// Status SendRefreshLRURequest(int sock, const std::vector<ObjectID>& object_ids);
 
 Status ReadRefreshLRURequest(const uint8_t* data, size_t size,
                              std::vector<ObjectID>* object_ids);
 
-Status SendRefreshLRUReply(int sock);
+// TODO: Replace raw socket with client handle.
+// Status SendRefreshLRUReply(int sock);
 
 Status ReadRefreshLRUReply(const uint8_t* data, size_t size);
 

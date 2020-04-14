@@ -123,15 +123,17 @@ cdef extern from "plasma/client.h" nogil:
 
         CStatus List(CObjectTable* objects)
 
-        CStatus Subscribe(int* fd)
+        CStatus Subscribe()
 
         CStatus DecodeNotifications(const uint8_t* buffer,
                                     c_vector[CUniqueID]* object_ids,
                                     c_vector[int64_t]* data_sizes,
                                     c_vector[int64_t]* metadata_sizes)
 
-        CStatus GetNotification(int fd, CUniqueID* object_id,
+        CStatus GetNotification(CUniqueID* object_id,
                                 int64_t* data_size, int64_t* metadata_size)
+
+        int GetNativeNotificationHandle()
 
         CStatus Disconnect()
 
@@ -300,12 +302,10 @@ cdef class PlasmaClient:
 
     cdef:
         shared_ptr[CPlasmaClient] client
-        int notification_fd
         c_string store_socket_name
 
     def __cinit__(self):
         self.client.reset(new CPlasmaClient())
-        self.notification_fd = -1
         self.store_socket_name = b""
 
     cdef _get_object_buffers(self, object_ids, int64_t timeout_ms,
@@ -660,14 +660,14 @@ cdef class PlasmaClient:
     def subscribe(self):
         """Subscribe to notifications about sealed objects."""
         with nogil:
-            plasma_check_status(
-                self.client.get().Subscribe(&self.notification_fd))
+            plasma_check_status(self.client.get().Subscribe())
 
     def get_notification_socket(self):
         """
         Get the notification socket.
         """
-        return compat.get_socket_from_fd(self.notification_fd,
+        cdef int fd = self.client.get().GetNativeNotificationHandle()
+        return compat.get_socket_from_fd(fd,
                                          family=socket.AF_UNIX,
                                          type=socket.SOCK_STREAM)
 
@@ -715,8 +715,7 @@ cdef class PlasmaClient:
         cdef int64_t data_size
         cdef int64_t metadata_size
         with nogil:
-            status = self.client.get().GetNotification(self.notification_fd,
-                                                       &object_id.data,
+            status = self.client.get().GetNotification(&object_id.data,
                                                        &data_size,
                                                        &metadata_size)
             plasma_check_status(status)

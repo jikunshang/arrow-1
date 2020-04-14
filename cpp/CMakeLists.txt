@@ -692,6 +692,8 @@ if(ARROW_S3)
   list(APPEND ARROW_LINK_LIBS ${AWSSDK_LINK_LIBRARIES})
 endif()
 
+add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
+
 add_custom_target(arrow_dependencies)
 add_custom_target(arrow_benchmark_dependencies)
 add_custom_target(arrow_test_dependencies)

@@ -34,12 +34,11 @@ pushd ../../cpp
         cmake -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_FLAGS="-g -O3" \
             -DCMAKE_CXX_FLAGS="-g -O3" \
-            -DARROW_BUILD_TESTS=off \
+            -DARROW_BUILD_TESTS=on \
             -DARROW_HDFS=on \
-            -DARROW_BOOST_USE_SHARED=on \
-            -DARROW_PYTHON=on \
+            -DARROW_BOOST_USE_SHARED=off \
             -DARROW_PLASMA=on \
-            -DPLASMA_PYTHON=on \
+            -DPLASMA_PYTHON=off \
             -DARROW_JEMALLOC=off \
             -DARROW_WITH_BROTLI=off \
             -DARROW_WITH_LZ4=off \

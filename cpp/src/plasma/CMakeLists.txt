@@ -22,6 +22,7 @@ add_custom_target(plasma-tests)
 add_dependencies(plasma-all plasma plasma-tests plasma-benchmarks)
 
 # For the moment, Plasma is versioned like Arrow
+project(plasma VERSION "${ARROW_BASE_VERSION}")
 set(PLASMA_VERSION "${ARROW_VERSION}")
 
 find_package(Threads)
@@ -34,23 +35,30 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-conversion")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
+# Set compiling options for asio headers.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-conversion -Wno-documentation")
+
+set(PLASMA_IO_SRCS
+    fling.cc
+    io/basic_connection.cc
+    io/connection.cc
+    protocol.cc)
+
 set(PLASMA_SRCS
     client.cc
     common.cc
-    fling.cc
-    io.cc
     malloc.cc
     plasma.cc
-    protocol.cc)
+    protocol.cc
+    ${PLASMA_IO_SRCS})
 
 set(PLASMA_STORE_SRCS
     dlmalloc.cc
-    events.cc
     eviction_policy.cc
     quota_aware_policy.cc
     plasma_allocator.cc
-    store.cc
-    thirdparty/ae/ae.c)
+    ${PLASMA_IO_SRCS}
+    store.cc)
 
 set(PLASMA_LINK_LIBS arrow_shared)
 set(PLASMA_STATIC_LINK_LIBS arrow_static)
@@ -66,7 +74,7 @@ if(NOT APPLE AND NOT MSVC)
   # from the client application. The OS X linker does not support the
   # version-script option.
   set(PLASMA_SHARED_LINK_FLAGS
-      "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map")
+      "-Wl,--no-undefined,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map")
 endif()
 
 add_arrow_lib(plasma
@@ -78,6 +86,7 @@ add_arrow_lib(plasma
               ${PLASMA_SRCS}
               OUTPUTS
               PLASMA_LIBRARIES
+              DEPENDENCIES
               SHARED_LINK_FLAGS
               ${PLASMA_SHARED_LINK_FLAGS}
               SHARED_LINK_LIBS
@@ -108,7 +117,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set_property(SOURCE dlmalloc.cc APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-conversion")
 endif()
 
-list(APPEND PLASMA_EXTERNAL_STORE_SOURCES "external_store.cc" "hash_table_store.cc")
+list(APPEND PLASMA_EXTERNAL_STORE_SOURCES "external_store.cc" "hash_table_store.cc" "vmemcache_store.cc")
+link_libraries(vmemcache numa )
 
 # We use static libraries for the plasma-store-server executable so that it can
 # be copied around and used in different locations.
@@ -119,8 +129,8 @@ else()
   # Fallback to shared libs in the case that static libraries are not build.
   target_link_libraries(plasma-store-server plasma_shared ${PLASMA_LINK_LIBS})
 endif()
-add_dependencies(plasma plasma-store-server)
 
+add_dependencies(plasma plasma-store-server)
 if(ARROW_RPATH_ORIGIN)
   if(APPLE)
     set(_lib_install_rpath "@loader_path")
@@ -149,7 +159,6 @@ endif()
 install(FILES common.h
               compat.h
               client.h
-              events.h
               test_util.h
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/plasma")
 
@@ -190,10 +199,16 @@ if(ARROW_PLASMA_JAVA_CLIENT)
                           plasma_shared
                           ${PLASMA_LINK_LIBS}
                           "-undefined dynamic_lookup"
-                          ${PTHREAD_LIBRARY})
+                          ${PTHREAD_LIBRARY}
+                          vmemcache)
   else(APPLE)
-    target_link_libraries(plasma_java plasma_shared ${PLASMA_LINK_LIBS}
-                          ${PTHREAD_LIBRARY})
+    target_link_libraries(plasma_java
+                          plasma_shared
+                          ${PLASMA_LINK_LIBS}
+                          ${PTHREAD_LIBRARY}
+                          vmemcache
+                          numa
+                          )
   endif(APPLE)
 endif()
 #
@@ -231,6 +246,11 @@ add_plasma_test(test/client_tests
                 EXTRA_DEPENDENCIES
                 plasma-store-server)
 add_plasma_test(test/external_store_tests
+                EXTRA_LINK_LIBS
+                ${PLASMA_TEST_LIBS}
+                EXTRA_DEPENDENCIES
+                plasma-store-server)
+add_plasma_test(test/vmemcache_store_tests  
                 EXTRA_LINK_LIBS
                 ${PLASMA_TEST_LIBS}
                 EXTRA_DEPENDENCIES

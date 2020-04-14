@@ -26,6 +26,7 @@
 #include "arrow/status.h"
 #include "arrow/util/macros.h"
 #include "arrow/util/visibility.h"
+#include "arrow/util/logging.h"
 #include "plasma/common.h"
 
 using arrow::Buffer;
@@ -58,7 +59,8 @@ class ARROW_EXPORT PlasmaClient {
   ///        Note that plasma manager is no longer supported, this function
   ///        will return failure if this is not "".
   /// \param release_delay Deprecated (not used).
-  /// \param num_retries number of attempts to connect to IPC socket, default 50
+  /// \param num_retries number of attempts to connect to IPC socket,
+  ///        default 50. Deprecated (not used).
   /// \return The return status.
   Status Connect(const std::string& store_socket_name,
                  const std::string& manager_socket_name = "", int release_delay = 0,
@@ -193,6 +195,15 @@ class ARROW_EXPORT PlasmaClient {
   /// \return The return status.
   Status List(ObjectTable* objects);
 
+  /// Get PlasmaStore memory usage metrics.
+  ///
+  /// This API is experimental and might change in the future.
+  ///
+  /// \param[out] metrics PlasmaStore memory uasge, including total share memory,
+  ///             used share memory, total external memory, used external memory.
+  /// \return The return status.
+  Status Metrics(PlasmaMetrics* metrics);
+
   /// Abort an unsealed object in the object store. If the abort succeeds, then
   /// it will be as if the object was never created at all. The unsealed object
   /// must have only a single reference (the one that would have been removed by
@@ -257,21 +268,22 @@ class ARROW_EXPORT PlasmaClient {
   /// Whenever an object is sealed, a message will be written to the client
   /// socket that is returned by this method.
   ///
-  /// \param fd Out parameter for the file descriptor the client should use to
-  /// read notifications
-  ///         from the object store about sealed objects.
   /// \return The return status.
-  Status Subscribe(int* fd);
+  Status Subscribe();
+
+  /// Return the native handle of the notification client.
+  int GetNativeNotificationHandle();
 
   /// Receive next object notification for this client if Subscribe has been called.
   ///
-  /// \param fd The file descriptor we are reading the notification from.
   /// \param object_id Out parameter, the object_id of the object that was sealed.
   /// \param data_size Out parameter, the data size of the object that was sealed.
   /// \param metadata_size Out parameter, the metadata size of the object that was sealed.
   /// \return The return status.
-  Status GetNotification(int fd, ObjectID* object_id, int64_t* data_size,
-                         int64_t* metadata_size);
+  Status GetNotification(ObjectID* object_id, int64_t* data_size, int64_t* metadata_size);
+
+  Status DecodeNotification(const uint8_t* buffer, ObjectID* object_id,
+                                        int64_t* data_size, int64_t* metadata_size);
 
   Status DecodeNotifications(const uint8_t* buffer, std::vector<ObjectID>* object_ids,
                              std::vector<int64_t>* data_sizes,

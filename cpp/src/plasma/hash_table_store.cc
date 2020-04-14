@@ -26,6 +26,12 @@ namespace plasma {
 
 Status HashTableStore::Connect(const std::string& endpoint) { return Status::OK(); }
 
+Status HashTableStore::Exist(ObjectID id) { return Status::OK(); }
+
+Status HashTableStore::RegisterEvictionPolicy(EvictionPolicy* eviction_policy) {
+   return Status::OK(); 
+}
+
 Status HashTableStore::Put(const std::vector<ObjectID>& ids,
                            const std::vector<std::shared_ptr<Buffer>>& data) {
   for (size_t i = 0; i < ids.size(); ++i) {
@@ -51,6 +57,22 @@ Status HashTableStore::Get(const std::vector<ObjectID>& ids,
     }
   }
   return Status::OK();
+}
+
+Status HashTableStore::Get(const std::vector<ObjectID> &ids,
+             std::vector<std::shared_ptr<Buffer>> buffers,
+             ObjectTableEntry *entry) {
+  return Get(ids, buffers);
+}
+
+ Status HashTableStore::Get(const ObjectID id, 
+             ObjectTableEntry *entry) {
+  return Status::OK();
+}
+            
+void HashTableStore::Metrics(int64_t* memory_total, int64_t* memory_used) {
+  *memory_total = 0;
+  *memory_used = 0;
 }
 
 REGISTER_EXTERNAL_STORE("hashtable", HashTableStore);

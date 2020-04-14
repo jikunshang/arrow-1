@@ -17,26 +17,15 @@
 
 #pragma once
 
-#include <errno.h>
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>  // pid_t
-
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
+#include <mutex>
 
 #include "plasma/compat.h"
 
 #include "arrow/status.h"
-#include "arrow/util/logging.h"
-#include "arrow/util/macros.h"
 #include "plasma/common.h"
 
 #ifdef PLASMA_CUDA
@@ -45,49 +34,10 @@ using arrow::cuda::CudaIpcMemHandle;
 
 namespace plasma {
 
-namespace flatbuf {
-struct ObjectInfoT;
-}  // namespace flatbuf
-
-#define HANDLE_SIGPIPE(s, fd_)                                              \
-  do {                                                                      \
-    Status _s = (s);                                                        \
-    if (!_s.ok()) {                                                         \
-      if (errno == EPIPE || errno == EBADF || errno == ECONNRESET) {        \
-        ARROW_LOG(WARNING)                                                  \
-            << "Received SIGPIPE, BAD FILE DESCRIPTOR, or ECONNRESET when " \
-               "sending a message to client on fd "                         \
-            << fd_                                                          \
-            << ". "                                                         \
-               "The client on the other end may have hung up.";             \
-      } else {                                                              \
-        return _s;                                                          \
-      }                                                                     \
-    }                                                                       \
-  } while (0);
-
 /// Allocation granularity used in plasma for object allocation.
 constexpr int64_t kBlockSize = 64;
 
-/// Contains all information that is associated with a Plasma store client.
-struct Client {
-  explicit Client(int fd);
-
-  /// The file descriptor used to communicate with the client.
-  int fd;
-
-  /// Object ids that are used by this client.
-  std::unordered_set<ObjectID> object_ids;
-
-  /// File descriptors that are used by this client.
-  std::unordered_set<int> used_fds;
-
-  /// The file descriptor used to push notifications to client. This is only valid
-  /// if client subscribes to plasma store. -1 indicates invalid.
-  int notification_fd;
-
-  std::string name = "anonymous_client";
-};
+static std::mutex entry_mtx;
 
 // TODO(pcm): Replace this by the flatbuffers message PlasmaObjectSpec.
 struct PlasmaObject {
@@ -119,6 +69,26 @@ struct PlasmaObject {
         (metadata_offset == other.metadata_offset) && (data_size == other.data_size) &&
         (metadata_size == other.metadata_size) && (device_num == other.device_num));
   }
+};
+
+/// Contains all information that is associated with a Plasma store client.
+struct Client {
+  explicit Client(int fd);
+
+  /// The file descriptor used to communicate with the client.
+  int fd;
+
+  /// Object ids that are used by this client.
+  std::unordered_set<ObjectID> object_ids;
+
+  /// File descriptors that are used by this client.
+  std::unordered_set<int> used_fds;
+
+  /// The file descriptor used to push notifications to client. This is only valid
+  /// if client subscribes to plasma store. -1 indicates invalid.
+  int notification_fd;
+
+  std::string name = "anonymous_client";
 };
 
 enum class ObjectStatus : int {

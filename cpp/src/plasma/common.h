@@ -22,6 +22,8 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <mutex>
+#include <atomic>
 // TODO(pcm): Convert getopt and sscanf in the store to use more idiomatic C++
 // and get rid of the next three lines:
 #ifndef __STDC_FORMAT_MACROS
@@ -118,7 +120,7 @@ struct ObjectTableEntry {
   /// Size of the object metadata in bytes.
   int64_t metadata_size;
   /// Number of clients currently using this object.
-  int ref_count;
+  std::atomic<int> ref_count;
   /// Unix epoch of when this object was created.
   int64_t create_time;
   /// How long creation of this object took.
@@ -129,12 +131,24 @@ struct ObjectTableEntry {
   /// The digest of the object. Used to see if two objects are the same.
   unsigned char digest[kDigestSize];
 
+  /// Object will evict to which numa node
+  int8_t numaNodePostion;
+  /// Mutex for evict
+  std::mutex mtx;
+
 #ifdef PLASMA_CUDA
   /// IPC GPU handle to share with clients.
   std::shared_ptr<::arrow::cuda::CudaIpcMemHandle> ipc_handle;
 #else
   std::shared_ptr<internal::CudaIpcPlaceholder> ipc_handle;
 #endif
+};
+
+struct PlasmaMetrics {
+  uint64_t share_mem_total;
+  uint64_t share_mem_used;
+  uint64_t external_total;
+  uint64_t external_used;
 };
 
 /// Mapping from ObjectIDs to information about the object.

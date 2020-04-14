@@ -125,7 +125,21 @@ JNIEXPORT jobjectArray JNICALL Java_org_apache_arrow_plasma_PlasmaClientJNI_wait
 JNIEXPORT jlong JNICALL Java_org_apache_arrow_plasma_PlasmaClientJNI_evict(JNIEnv*,
                                                                            jclass, jlong,
                                                                            jlong);
+/*
+ * Class:     org_apache_arrow_plasma_PlasmaClientJNI
+ * Method:    list
+ * Signature: //TODO
+ */
+JNIEXPORT jobjectArray JNICALL Java_org_apache_arrow_plasma_PlasmaClientJNI_list(
+    JNIEnv*, jclass, jlong );
 
+/*
+ * Class:     org_apache_arrow_plasma_PlasmaClientJNI
+ * Method:    metircs
+ * Signature: //TODO
+ */
+JNIEXPORT jint JNICALL Java_org_apache_arrow_plasma_PlasmaClientJNI_metrics(  
+    JNIEnv* env, jclass cls, jlong conn, jlongArray metricsArray);
 #ifdef __cplusplus
 }
 #endif

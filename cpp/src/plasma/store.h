@@ -17,19 +17,22 @@
 
 #pragma once
 
-#include <deque>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <mutex>
 
 #include "plasma/common.h"
-#include "plasma/events.h"
 #include "plasma/external_store.h"
+#include "plasma/io/connection.h"
 #include "plasma/plasma.h"
 #include "plasma/protocol.h"
 #include "plasma/quota_aware_policy.h"
+#include "plasma/common_generated.h"
+#include "plasma/quota_aware_policy.h"
+#include "plasma/external_store.h"
 
 namespace arrow {
 class Status;
@@ -38,12 +41,11 @@ class Status;
 namespace plasma {
 
 namespace flatbuf {
-struct ObjectInfoT;
 enum class PlasmaError;
 }  // namespace flatbuf
 
-using flatbuf::ObjectInfoT;
 using flatbuf::PlasmaError;
+using io::ClientConnection;
 
 struct GetRequest;
 
@@ -55,11 +57,8 @@ struct NotificationQueue {
 
 class PlasmaStore {
  public:
-  using NotificationMap = std::unordered_map<int, NotificationQueue>;
-
-  // TODO: PascalCase PlasmaStore methods.
-  PlasmaStore(EventLoop* loop, std::string directory, bool hugepages_enabled,
-              const std::string& socket_name,
+  PlasmaStore(asio::io_context& main_context, std::string directory,
+              bool hugepages_enabled, const std::string& stream_name,
               std::shared_ptr<ExternalStore> external_store);
 
   ~PlasmaStore();
@@ -94,7 +93,8 @@ class PlasmaStore {
   ///    plasma_release.
   PlasmaError CreateObject(const ObjectID& object_id, bool evict_if_full,
                            int64_t data_size, int64_t metadata_size, int device_num,
-                           Client* client, PlasmaObject* result);
+                           const std::shared_ptr<ClientConnection>& client,
+                           PlasmaObject* result);
 
   /// Abort a created but unsealed object. If the client is not the
   /// creator, then the abort will fail.
@@ -103,7 +103,8 @@ class PlasmaStore {
   /// \param client The client who created the object. If this does not
   ///   match the creator of the object, then the abort will fail.
   /// \return 1 if the abort succeeds, else 0.
-  int AbortObject(const ObjectID& object_id, Client* client);
+  int AbortObject(const ObjectID& object_id,
+                  const std::shared_ptr<ClientConnection>& client);
 
   /// Delete a specific object by object_id that have been created in the hash table.
   ///
@@ -130,11 +131,10 @@ class PlasmaStore {
   /// \param client The client making this request.
   /// \param object_ids Object IDs of the objects to be gotten.
   /// \param timeout_ms The timeout for the get request in milliseconds.
-  void ProcessGetRequest(Client* client, const std::vector<ObjectID>& object_ids,
-                         int64_t timeout_ms);
+  Status ProcessGetRequest(const std::shared_ptr<ClientConnection>& client,
+                           const std::vector<ObjectID>& object_ids, int64_t timeout_ms);
 
-  /// Seal a vector of objects. The objects are now immutable and can be accessed with
-  /// get.
+  /// Seal an object. The object is now immutable and can be accessed with get.
   ///
   /// \param object_ids The vector of Object IDs of the objects to be sealed.
   /// \param digests The vector of digests of the objects. This is used to tell if two
@@ -147,42 +147,42 @@ class PlasmaStore {
   /// \param object_id Object ID that will be checked.
   /// \return OBJECT_FOUND if the object is in the store, OBJECT_NOT_FOUND if
   /// not
-  ObjectStatus ContainsObject(const ObjectID& object_id);
+  ObjectStatus ContainsObject(const ObjectID& object_id, 
+			      const std::shared_ptr<ClientConnection>& client);
 
   /// Record the fact that a particular client is no longer using an object.
   ///
   /// \param object_id The object ID of the object that is being released.
   /// \param client The client making this request.
-  void ReleaseObject(const ObjectID& object_id, Client* client);
+  void ReleaseObject(const ObjectID& object_id,
+                     const std::shared_ptr<ClientConnection>& client);
 
   /// Subscribe a file descriptor to updates about new sealed objects.
   ///
   /// \param client The client making this request.
-  void SubscribeToUpdates(Client* client);
+  void SubscribeToUpdates(const std::shared_ptr<ClientConnection>& client);
 
-  /// Connect a new client to the PlasmaStore.
-  ///
-  /// \param listener_sock The socket that is listening to incoming connections.
-  void ConnectClient(int listener_sock);
-
-  /// Disconnect a client from the PlasmaStore.
-  ///
-  /// \param client_fd The client file descriptor that is disconnected.
-  void DisconnectClient(int client_fd);
-
-  NotificationMap::iterator SendNotifications(NotificationMap::iterator it);
-
-  arrow::Status ProcessMessage(Client* client);
+  static uint8_t* AllocateMemory(size_t size, int* fd, int64_t* map_size, ptrdiff_t* offset);
+  static uint8_t* AllocateMemory(size_t size, bool evict_if_full, int* fd, int64_t* map_size,
+                          ptrdiff_t* offset, Client* client, bool is_create);
+  void OnKill();
 
  private:
-  void PushNotification(ObjectInfoT* object_notification);
 
-  void PushNotifications(std::vector<ObjectInfoT>& object_notifications);
+  // Update memory store and external store metrics
+  void UpdateMetrics(PlasmaMetrics *metrics);
 
-  void PushNotification(ObjectInfoT* object_notification, int client_fd);
+  // Inform all subscribers that a new object has been sealed.
+  void PushObjectReadyNotification(const ObjectID& object_id,
+                                   const ObjectTableEntry& entry);
+
+  // Inform all subscribers that an object has evicted.
+  void PushNotifications(std::vector<flatbuf::ObjectInfoT>& object_notifications);
+
+  void PushNotification(flatbuf::ObjectInfoT* object_notification, int client_fd);
 
   void AddToClientObjectIds(const ObjectID& object_id, ObjectTableEntry* entry,
-                            Client* client);
+                            const std::shared_ptr<ClientConnection>& client);
 
   /// Remove a GetRequest and clean up the relevant data structures.
   ///
@@ -192,19 +192,23 @@ class PlasmaStore {
   /// Remove all of the GetRequests for a given client.
   ///
   /// \param client The client whose GetRequests should be removed.
-  void RemoveGetRequestsForClient(Client* client);
+  void RemoveGetRequestsForClient(const std::shared_ptr<ClientConnection>& client);
+
+  /// Release all resources used by the client.
+  ///
+  /// \param client The client whose resources should be released.
+  void ReleaseClientResources(const std::shared_ptr<ClientConnection>& client);
 
   void ReturnFromGet(GetRequest* get_req);
 
   void UpdateObjectGetRequests(const ObjectID& object_id);
 
-  int RemoveFromClientObjectIds(const ObjectID& object_id, ObjectTableEntry* entry,
-                                Client* client);
-
   void EraseFromObjectTable(const ObjectID& object_id);
 
-  uint8_t* AllocateMemory(size_t size, bool evict_if_full, int* fd, int64_t* map_size,
-                          ptrdiff_t* offset, Client* client, bool is_create);
+  void IncreaseObjectRefCount(const ObjectID& object_id, ObjectTableEntry* entry);
+
+  void DecreaseObjectRefCount(const ObjectID& object_id, ObjectTableEntry* entry);
+
 #ifdef PLASMA_CUDA
   Status AllocateCudaMemory(int device_num, int64_t size, uint8_t** out_pointer,
                             std::shared_ptr<CudaIpcMemHandle>* out_ipc_handle);
@@ -212,27 +216,36 @@ class PlasmaStore {
   Status FreeCudaMemory(int device_num, int64_t size, uint8_t* out_pointer);
 #endif
 
-  /// Event loop of the plasma store.
-  EventLoop* loop_;
+  std::chrono::duration<double> process_total_time = std::chrono::duration<double>(0);
+  /// Accept a client connection.
+  void DoAccept();
+  /// Handle an accepted client connection.
+  void HandleAccept(const error_code& error);
+
+  Status ProcessClientMessage(const std::shared_ptr<ClientConnection>& client,
+                              int64_t message_type, int64_t message_size,
+                              const uint8_t* message_data);
+
+  /// Disconnect a client from the PlasmaStore.
+  ///
+  /// \param client The client that is disconnected.
+  void ProcessDisconnectClient(const std::shared_ptr<ClientConnection>& client);
+
   /// The plasma store information, including the object tables, that is exposed
   /// to the eviction policy.
   PlasmaStoreInfo store_info_;
   /// The state that is managed by the eviction policy.
-  QuotaAwarePolicy eviction_policy_;
+  EvictionPolicy eviction_policy_;
   /// Input buffer. This is allocated only once to avoid mallocs for every
   /// call to process_message.
   std::vector<uint8_t> input_buffer_;
   /// A hash table mapping object IDs to a vector of the get requests that are
   /// waiting for the object to arrive.
   std::unordered_map<ObjectID, std::vector<GetRequest*>> object_get_requests_;
-  /// The pending notifications that have not been sent to subscribers because
-  /// the socket send buffers were full. This is a hash table from client file
-  /// descriptor to an array of object_ids to send to that client.
-  /// TODO(pcm): Consider putting this into the Client data structure and
-  /// reorganize the code slightly.
-  NotificationMap pending_notifications_;
 
-  std::unordered_map<int, std::unique_ptr<Client>> connected_clients_;
+  std::unordered_set<std::shared_ptr<ClientConnection>> notification_clients_;
+
+  std::unordered_set<std::shared_ptr<ClientConnection>> connected_clients_;
 
   std::unordered_set<ObjectID> deletion_cache_;
 
@@ -242,6 +255,13 @@ class PlasmaStore {
 #ifdef PLASMA_CUDA
   arrow::cuda::CudaDeviceManager* manager_;
 #endif
+  asio::io_context& io_context_;
+  /// The name of the stream this store server listens on.
+  std::string stream_name_;
+  /// An acceptor for new clients.
+  io::PlasmaAcceptor acceptor_;
+  /// The stream to listen on for new clients.
+  io::PlasmaStream stream_;
 };
 
 }  // namespace plasma

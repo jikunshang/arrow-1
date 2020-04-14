@@ -20,6 +20,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <mutex>
+
 namespace plasma {
 
 class PlasmaAllocator {
@@ -52,6 +54,8 @@ class PlasmaAllocator {
   /// Get the number of bytes allocated by Plasma so far.
   /// \return Number of bytes allocated by Plasma so far.
   static int64_t Allocated();
+
+  static std::mutex mtx;
 
  private:
   static int64_t allocated_;

@@ -28,6 +28,7 @@
 #include "plasma/common.h"
 #include "plasma/eviction_policy.h"
 #include "plasma/plasma.h"
+#include "arrow/util/logging.h"
 
 namespace plasma {
 

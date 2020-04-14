@@ -123,4 +123,8 @@ public interface ObjectStoreLink {
    * @param objectId used to identify an object.
    */
   boolean contains(byte[] objectId);
+
+  byte[][] list();
+
+  int metrics(long[] metrics);
 }

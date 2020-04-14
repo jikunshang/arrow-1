@@ -12,6 +12,8 @@ namespace flatbuf {
 
 struct PlasmaObjectSpec;
 
+struct PlasmaMetrics;
+
 struct PlasmaSetOptionsRequest;
 struct PlasmaSetOptionsRequestBuilder;
 struct PlasmaSetOptionsRequestT;
@@ -67,6 +69,10 @@ struct PlasmaAbortReplyT;
 struct PlasmaSealRequest;
 struct PlasmaSealRequestBuilder;
 struct PlasmaSealRequestT;
+
+struct PlasmaMetricsRequest;
+
+struct PlasmaMetricsReply;
 
 struct PlasmaSealReply;
 struct PlasmaSealReplyBuilder;
@@ -189,11 +195,13 @@ enum class MessageType : int64_t {
   PlasmaCreateAndSealBatchReply = 33LL,
   PlasmaRefreshLRURequest = 34LL,
   PlasmaRefreshLRUReply = 35LL,
+  PlasmaMetricsRequest = 36LL,
+  PlasmaMetricsReply = 37LL,
   MIN = PlasmaDisconnectClient,
-  MAX = PlasmaRefreshLRUReply
+  MAX = PlasmaMetricsReply
 };
 
-inline const MessageType (&EnumValuesMessageType())[36] {
+inline const MessageType (&EnumValuesMessageType())[38] {
   static const MessageType values[] = {
     MessageType::PlasmaDisconnectClient,
     MessageType::PlasmaCreateRequest,
@@ -230,7 +238,9 @@ inline const MessageType (&EnumValuesMessageType())[36] {
     MessageType::PlasmaCreateAndSealBatchRequest,
     MessageType::PlasmaCreateAndSealBatchReply,
     MessageType::PlasmaRefreshLRURequest,
-    MessageType::PlasmaRefreshLRUReply
+    MessageType::PlasmaRefreshLRUReply,
+    MessageType::PlasmaMetricsRequest,
+    MessageType::PlasmaMetricsReply
   };
   return values;
 }
@@ -273,13 +283,15 @@ inline const char * const *EnumNamesMessageType() {
     "PlasmaCreateAndSealBatchReply",
     "PlasmaRefreshLRURequest",
     "PlasmaRefreshLRUReply",
+    "PlasmaMetricsRequest",
+    "PlasmaMetricsReply",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameMessageType(MessageType e) {
-  if (flatbuffers::IsOutRange(e, MessageType::PlasmaDisconnectClient, MessageType::PlasmaRefreshLRUReply)) return "";
+  if (flatbuffers::IsOutRange(e, MessageType::PlasmaDisconnectClient, MessageType::PlasmaMetricsReply)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesMessageType()[index];
 }
@@ -373,6 +385,38 @@ FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(8) PlasmaObjectSpec FLATBUFFERS_FINAL_CLASS 
   }
 };
 FLATBUFFERS_STRUCT_END(PlasmaObjectSpec, 48);
+
+FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(8) PlasmaMetrics FLATBUFFERS_FINAL_CLASS {
+ private:
+  uint64_t share_mem_total_;
+  uint64_t share_mem_used_;
+  uint64_t external_total_;
+  uint64_t external_used_;
+
+ public:
+  PlasmaMetrics() {
+    memset(static_cast<void *>(this), 0, sizeof(PlasmaMetrics));
+  }
+  PlasmaMetrics(uint64_t _share_mem_total, uint64_t _share_mem_used, uint64_t _external_total, uint64_t _external_used)
+      : share_mem_total_(flatbuffers::EndianScalar(_share_mem_total)),
+        share_mem_used_(flatbuffers::EndianScalar(_share_mem_used)),
+        external_total_(flatbuffers::EndianScalar(_external_total)),
+        external_used_(flatbuffers::EndianScalar(_external_used)) {
+  }
+  uint64_t share_mem_total() const {
+    return flatbuffers::EndianScalar(share_mem_total_);
+  }
+  uint64_t share_mem_used() const {
+    return flatbuffers::EndianScalar(share_mem_used_);
+  }
+  uint64_t external_total() const {
+    return flatbuffers::EndianScalar(external_total_);
+  }
+  uint64_t external_used() const {
+    return flatbuffers::EndianScalar(external_used_);
+  }
+};
+FLATBUFFERS_STRUCT_END(PlasmaMetrics, 32);
 
 struct PlasmaSetOptionsRequestT : public flatbuffers::NativeTable {
   typedef PlasmaSetOptionsRequest TableType;
@@ -1588,6 +1632,75 @@ inline flatbuffers::Offset<PlasmaSealReply> CreatePlasmaSealReplyDirect(
 }
 
 flatbuffers::Offset<PlasmaSealReply> CreatePlasmaSealReply(flatbuffers::FlatBufferBuilder &_fbb, const PlasmaSealReplyT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PlasmaMetricsRequest FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+};
+
+struct PlasmaMetricsRequestBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit PlasmaMetricsRequestBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PlasmaMetricsRequestBuilder &operator=(const PlasmaMetricsRequestBuilder &);
+  flatbuffers::Offset<PlasmaMetricsRequest> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PlasmaMetricsRequest>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PlasmaMetricsRequest> CreatePlasmaMetricsRequest(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  PlasmaMetricsRequestBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+struct PlasmaMetricsReply FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_METRICS = 4
+  };
+  const plasma::flatbuf::PlasmaMetrics *metrics() const {
+    return GetStruct<const plasma::flatbuf::PlasmaMetrics *>(VT_METRICS);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<plasma::flatbuf::PlasmaMetrics>(verifier, VT_METRICS) &&
+           verifier.EndTable();
+  }
+};
+
+struct PlasmaMetricsReplyBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_metrics(const plasma::flatbuf::PlasmaMetrics *metrics) {
+    fbb_.AddStruct(PlasmaMetricsReply::VT_METRICS, metrics);
+  }
+  explicit PlasmaMetricsReplyBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PlasmaMetricsReplyBuilder &operator=(const PlasmaMetricsReplyBuilder &);
+  flatbuffers::Offset<PlasmaMetricsReply> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PlasmaMetricsReply>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PlasmaMetricsReply> CreatePlasmaMetricsReply(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const plasma::flatbuf::PlasmaMetrics *metrics = 0) {
+  PlasmaMetricsReplyBuilder builder_(_fbb);
+  builder_.add_metrics(metrics);
+  return builder_.Finish();
+}
+
 
 struct PlasmaGetRequestT : public flatbuffers::NativeTable {
   typedef PlasmaGetRequest TableType;
