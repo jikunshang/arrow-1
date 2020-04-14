@@ -185,8 +185,13 @@ void PlasmaStore::AddToClientObjectIds(const ObjectID& object_id, ObjectTableEnt
 
 // Allocate memory
 uint8_t* PlasmaStore::AllocateMemory(size_t size, bool evict_if_full, int* fd,
-                                     int64_t* map_size, ptrdiff_t* offset, Client* client,
+                                     int64_t* map_size, ptrdiff_t* offset,
+                                     const std::shared_ptr<ClientConnection>& client,
                                      bool is_create) {
+  if (evict_if_full) {
+    ;
+  }
+  
   // Try to evict objects until there is enough space.
   uint8_t* pointer = nullptr;
   int waitFlag = 0;
@@ -218,8 +223,11 @@ uint8_t* PlasmaStore::AllocateMemory(size_t size, bool evict_if_full, int* fd,
     std::chrono::duration<double> time_ = toc - tic;
     ARROW_LOG(DEBUG)<<"wait free space takes " << time_.count() * 1000 << " ms";
   }
-  GetMallocMapinfo(pointer, fd, map_size, offset);
-  // ARROW_CHECK(*fd != -1);
+
+  if (pointer != nullptr) {
+    GetMallocMapinfo(pointer, fd, map_size, offset);
+  }
+
   return pointer;
 }
 
@@ -244,8 +252,7 @@ Status PlasmaStore::FreeCudaMemory(int device_num, int64_t size, uint8_t* pointe
 
 // Create a new object buffer in the hash table.
 PlasmaError PlasmaStore::CreateObject(const ObjectID& object_id, bool evict_if_full,
-                                      int64_t data_size, int64_t metadata_size,
-                                      int device_num,
+                                      int64_t data_size, int64_t metadata_size, int device_num,
                                       const std::shared_ptr<ClientConnection>& client,
                                       PlasmaObject* result) {
   ARROW_LOG(DEBUG) << "creating object " << object_id.hex();
@@ -274,12 +281,21 @@ PlasmaError PlasmaStore::CreateObject(const ObjectID& object_id, bool evict_if_f
   if (device_num == 0) {
     pointer =
         AllocateMemory(total_size, evict_if_full, &fd, &map_size, &offset, client, true);
+
     if (!pointer) {
       ARROW_LOG(ERROR) << "Not enough memory to create the object " << object_id.hex()
                        << ", data_size=" << data_size
                        << ", metadata_size=" << metadata_size
                        << ", will send a reply of PlasmaError::OutOfMemory";
-      return PlasmaError::OutOfMemory;
+      if (!external_store_) {
+        std::vector<ObjectID> objects_to_evict;
+        bool success = eviction_policy_.RequireSpace(total_size, &objects_to_evict);
+        EvictObjects(objects_to_evict);
+      }
+      pointer = 
+          AllocateMemory(total_size, evict_if_full, &fd, &map_size, &offset, client, true);
+      if (!pointer)
+        return PlasmaError::OutOfMemory;
     }
   } else {
 #ifdef PLASMA_CUDA
@@ -293,23 +309,6 @@ PlasmaError PlasmaStore::CreateObject(const ObjectID& object_id, bool evict_if_f
     ARROW_LOG(ERROR) << "device_num != 0 but CUDA not enabled";
     return PlasmaError::OutOfMemory;
 #endif
-  } else {
-    pointer = AllocateMemory(total_size, &fd, &map_size, &offset);
-    if (!pointer) {
-      ARROW_LOG(ERROR) << "Not enough memory to create the object " << object_id.hex()
-                       << ", data_size=" << data_size
-                       << ", metadata_size=" << metadata_size
-                       << ", will send a reply of PlasmaError::OutOfMemory";
-
-      if(!external_store_) {
-        std::vector<ObjectID> objects_to_evict;
-        bool success = eviction_policy_.RequireSpace(total_size, &objects_to_evict);
-        EvictObjects(objects_to_evict);
-      }
-      pointer = AllocateMemory(total_size, &fd, &map_size, &offset);
-      if(!pointer )
-        return PlasmaError::OutOfMemory;
-    }
   }
 
   entry->pointer = pointer;
@@ -705,9 +704,9 @@ void PlasmaStore::DecreaseObjectRefCount(const ObjectID& object_id,
 
 void PlasmaStore::PushObjectReadyNotification(const ObjectID& object_id,
                                               const ObjectTableEntry& entry) {
-  for (const auto& client : notification_clients_) {
-    client->SendObjectReadyAsync(object_id, entry);
-  }
+  // for (const auto& client : notification_clients_) {
+  //   client->SendObjectReadyAsync(object_id, entry);
+  // }
 }
 
 void PushObjectDeletionNotification(const ObjectID& object_id) {
@@ -730,9 +729,9 @@ void PlasmaStore::SubscribeToUpdates(const std::shared_ptr<ClientConnection>& cl
 
   // Push notifications to the new subscriber about existing sealed objects.
   for (const auto& entry : store_info_.objects) {
-    if (entry.second->state == ObjectState::PLASMA_SEALED) {
-      client->SendObjectReadyAsync(entry.first, *entry.second);
-    }
+    // if (entry.second->state == ObjectState::PLASMA_SEALED) {
+    //   client->SendObjectReadyAsync(entry.first, *entry.second);
+    // }
   }
 }
 
@@ -853,7 +852,7 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
       int64_t data_size;
       int64_t metadata_size;
       int device_num;
-      RETURN_NOT_OK(ReadCreateRequest(input, input_size, &object_id, &evict_if_full,
+      RETURN_NOT_OK(ReadCreateRequest(message_data, message_size, &object_id, &evict_if_full,
                                       &data_size, &metadata_size, &device_num));
       PlasmaObject object = {};
       PlasmaError error_code = CreateObject(object_id, evict_if_full, data_size,
@@ -874,14 +873,15 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
         }
       }
     } break;
-    case fb::MessageType::PlasmaCreateAndSealRequest: {
+    case MessageType::PlasmaCreateAndSealRequest: {
       bool evict_if_full;
       std::string data;
       std::string metadata;
       std::string digest;
       digest.reserve(kDigestSize);
-      RETURN_NOT_OK(ReadCreateAndSealRequest(input, input_size, &object_id,
+      RETURN_NOT_OK(ReadCreateAndSealRequest(message_data, message_size, &object_id,
                                              &evict_if_full, &data, &metadata, &digest));
+      PlasmaObject object = {};
       // CreateAndSeal currently only supports device_num = 0, which corresponds
       // to the host.
       int device_num = 0;
@@ -898,8 +898,7 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
         // Write the inlined data and metadata into the allocated object.
         std::memcpy(entry->pointer, data.data(), data.size());
         std::memcpy(entry->pointer + data.size(), metadata.data(), metadata.size());
-        std::string s((char*)digest);
-        SealObjects({object_id}, {s} );
+        SealObjects({object_id}, {digest} );
         // Remove the client from the object's array of clients because the
         // object is not being used by any client. The client was added to the
         // object's array of clients in CreateObject. This is analogous to the
@@ -908,8 +907,9 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
         DecreaseObjectRefCount(object_id, entry);
       }
 
+      SendCreateAndSealReply(client, error_code);
       // Reply to the client.
-      HANDLE_SIGPIPE(SendCreateAndSealReply(client->fd, error_code), client->fd);
+      // HANDLE_SIGPIPE(SendCreateAndSealReply(client, error_code), client->fd);
     } break;
     // PlasmaCreateAndSealBatchRequest is not supported due to using raw socket
     // case fb::MessageType::PlasmaCreateAndSealBatchRequest: {
@@ -964,7 +964,7 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
 
     //   HANDLE_SIGPIPE(SendCreateAndSealBatchReply(client->fd, error_code), client->fd);
     // } break;
-    case fb::MessageType::PlasmaAbortRequest: {
+    case MessageType::PlasmaAbortRequest: {
       RETURN_NOT_OK(ReadAbortRequest(message_data, message_size, &object_id));
       ARROW_CHECK(AbortObject(object_id, client) == 1) << "To abort an object, the only "
                                                           "client currently using it "
@@ -1006,7 +1006,8 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
       digest.reserve(kDigestSize);
       RETURN_NOT_OK(ReadSealRequest(message_data, message_size, &object_id, &digest));
       SealObjects({object_id}, {digest});
-      HANDLE_SIGPIPE(SendSealReply(client->fd, object_id, PlasmaError::OK), client->fd);
+      SendSealReply(client, object_id, PlasmaError::OK);
+      // HANDLE_SIGPIPE(SendSealReply(client->fd, object_id, PlasmaError::OK), client->fd);
     } break;
     case MessageType::PlasmaEvictRequest: {
       // This code path should only be used for testing.

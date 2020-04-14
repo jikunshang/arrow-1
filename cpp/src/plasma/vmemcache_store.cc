@@ -347,8 +347,9 @@ Status VmemcacheStore::Get(const ObjectID id, ObjectTableEntry *entry)
 {
   getThreadPools[entry->numaNodePostion]->enqueue([&, id, entry]() {
     ARROW_LOG(DEBUG) << "pre fetch object " << id.hex();
-    uint8_t *pointer = PlasmaStore::AllocateMemory(entry->data_size + entry->metadata_size,
-                                                   &entry->fd, &entry->map_size, &entry->offset);
+    uint8_t *pointer = PlasmaStore::AllocateMemory(entry->data_size + entry->metadata_size, false,
+                                                   &entry->fd, &entry->map_size, &entry->offset,
+                                                   nullptr, true);
     if (!pointer)
     {
       ARROW_LOG(ERROR) << "Not enough memory to create the object " << id.hex()

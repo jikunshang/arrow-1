@@ -33,6 +33,8 @@
 
 namespace plasma {
 
+using arrow::internal::TemporaryDir;
+
 using flatbuf::MessageType;
 using io::ClientConnection;
 using io::ServerConnection;
@@ -40,6 +42,7 @@ using io::ServerConnection;
 class TestPlasmaSerialization : public ::testing::Test {
  public:
   void SetUp() override {
+    ASSERT_OK_AND_ASSIGN(temp_dir_, TemporaryDir::Make("ser-test-"));
     using asio::local::stream_protocol;
     stream_protocol::socket parentSocket(io_context_);
     stream_protocol::socket childSocket(io_context_);
@@ -57,7 +60,21 @@ class TestPlasmaSerialization : public ::testing::Test {
     server_->Close();
   }
 
+  // Create a temporary file.
+  // A fd is returned which must be closed manually.  The file itself
+  // is deleted at the end of the test.
+  int CreateTemporaryFile(void) {
+    char path[1024];
+
+    std::stringstream ss;
+    ss << temp_dir_->path().ToString() << "fileXXXXXX";
+    strncpy(path, ss.str().c_str(), sizeof(path));
+    ARROW_LOG(INFO) << "file path: '" << path << "'";
+    return mkstemp(path);
+  }
+
  protected:
+  std::unique_ptr<TemporaryDir> temp_dir_;
   asio::io_context io_context_;
   std::shared_ptr<ServerConnection> client_;
   std::shared_ptr<ClientConnection> server_;
@@ -86,26 +103,26 @@ PlasmaObject random_plasma_object(void) {
   return object;
 }
 
-class TestPlasmaSerialization : public ::testing::Test {
- public:
-  void SetUp() { ASSERT_OK_AND_ASSIGN(temp_dir_, TemporaryDir::Make("ser-test-")); }
+// class TestPlasmaSerialization : public ::testing::Test {
+//  public:
+//   void SetUp() { ASSERT_OK_AND_ASSIGN(temp_dir_, TemporaryDir::Make("ser-test-")); }
 
-  // Create a temporary file.
-  // A fd is returned which must be closed manually.  The file itself
-  // is deleted at the end of the test.
-  int CreateTemporaryFile(void) {
-    char path[1024];
+//   // Create a temporary file.
+//   // A fd is returned which must be closed manually.  The file itself
+//   // is deleted at the end of the test.
+//   int CreateTemporaryFile(void) {
+//     char path[1024];
 
-    std::stringstream ss;
-    ss << temp_dir_->path().ToString() << "fileXXXXXX";
-    strncpy(path, ss.str().c_str(), sizeof(path));
-    ARROW_LOG(INFO) << "file path: '" << path << "'";
-    return mkstemp(path);
-  }
+//     std::stringstream ss;
+//     ss << temp_dir_->path().ToString() << "fileXXXXXX";
+//     strncpy(path, ss.str().c_str(), sizeof(path));
+//     ARROW_LOG(INFO) << "file path: '" << path << "'";
+//     return mkstemp(path);
+//   }
 
- protected:
-  std::unique_ptr<TemporaryDir> temp_dir_;
-};
+//  protected:
+//   std::unique_ptr<TemporaryDir> temp_dir_;
+// };
 
 TEST_F(TestPlasmaSerialization, CreateRequest) {
   ObjectID object_id1 = random_object_id();

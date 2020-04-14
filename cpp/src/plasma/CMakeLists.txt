@@ -250,8 +250,3 @@ add_plasma_test(test/external_store_tests
                 ${PLASMA_TEST_LIBS}
                 EXTRA_DEPENDENCIES
                 plasma-store-server)
-add_plasma_test(test/vmemcache_store_tests  
-                EXTRA_LINK_LIBS
-                ${PLASMA_TEST_LIBS}
-                EXTRA_DEPENDENCIES
-                plasma-store-server)

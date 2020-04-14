@@ -162,9 +162,10 @@ class PlasmaStore {
   /// \param client The client making this request.
   void SubscribeToUpdates(const std::shared_ptr<ClientConnection>& client);
 
-  static uint8_t* AllocateMemory(size_t size, int* fd, int64_t* map_size, ptrdiff_t* offset);
-  static uint8_t* AllocateMemory(size_t size, bool evict_if_full, int* fd, int64_t* map_size,
-                          ptrdiff_t* offset, Client* client, bool is_create);
+  static uint8_t* AllocateMemory(size_t size, bool evict_if_full, int* fd,
+                                 int64_t* map_size, ptrdiff_t* offset,
+                                 const std::shared_ptr<ClientConnection>& client,
+                                 bool is_create);
   void OnKill();
 
  private:

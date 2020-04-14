@@ -169,8 +169,8 @@ Status ReadSetOptionsReply(const uint8_t* data, size_t size) {
 // Create messages.
 
 Status SendCreateRequest(const std::shared_ptr<ServerConnection>& client,
-                         ObjectID object_id, int64_t data_size, int64_t metadata_size,
-                         int device_num) {
+                         ObjectID object_id, bool evict_if_full,int64_t data_size,
+                         int64_t metadata_size, int device_num) {
   flatbuffers::FlatBufferBuilder fbb;
   auto message = fb::CreatePlasmaCreateRequest(fbb, fbb.CreateString(object_id.binary()),
                                                data_size, metadata_size, device_num);
