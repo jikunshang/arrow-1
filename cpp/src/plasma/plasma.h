@@ -137,9 +137,9 @@ ObjectTableEntry* GetObjectTableEntry(PlasmaStoreInfo* store_info,
 /// \return The errno set.
 int WarnIfSigpipe(int status, int client_sock);
 
-std::unique_ptr<uint8_t[]> CreateObjectInfoBuffer(flatbuf::ObjectInfoT* object_info);
+// std::unique_ptr<uint8_t[]> CreateObjectInfoBuffer(flatbuf::ObjectInfoT* object_info);
 
-std::unique_ptr<uint8_t[]> CreatePlasmaNotificationBuffer(
-    std::vector<flatbuf::ObjectInfoT>& object_info);
+// std::unique_ptr<uint8_t[]> CreatePlasmaNotificationBuffer(
+//     std::vector<flatbuf::ObjectInfoT>& object_info);
 
 }  // namespace plasma

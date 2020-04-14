@@ -179,7 +179,8 @@ Status SendCreateRequest(const std::shared_ptr<ServerConnection>& client,
 }
 
 Status ReadCreateRequest(const uint8_t* data, size_t size, ObjectID* object_id,
-                         int64_t* data_size, int64_t* metadata_size, int* device_num) {
+                         bool* evict_if_full, int64_t* data_size, int64_t* metadata_size,
+                         int* device_num) {
   DCHECK(data);
   auto message = flatbuffers::GetRoot<fb::PlasmaCreateRequest>(data);
   DCHECK(VerifyFlatbuffer(message, data, size));

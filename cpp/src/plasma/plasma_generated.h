@@ -246,7 +246,7 @@ inline const MessageType (&EnumValuesMessageType())[38] {
 }
 
 inline const char * const *EnumNamesMessageType() {
-  static const char * const names[37] = {
+  static const char * const names[39] = {
     "PlasmaDisconnectClient",
     "PlasmaCreateRequest",
     "PlasmaCreateReply",

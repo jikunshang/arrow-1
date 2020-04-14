@@ -250,59 +250,60 @@ void ClientConnection::ProcessMessage(int64_t type, int64_t length, const uint8_
   message_handler_(shared_from_this(), type, length, data);
 }
 
-struct AsyncObjectNotificationWriteBuffer : public AsyncWriteBuffer {
-  ~AsyncObjectNotificationWriteBuffer() override {}
+//  TODO(kunshang): Not supported for now
+// struct AsyncObjectNotificationWriteBuffer : public AsyncWriteBuffer {
+//   ~AsyncObjectNotificationWriteBuffer() override {}
 
-  static std::unique_ptr<AsyncObjectNotificationWriteBuffer> MakeDeletion(
-      const ObjectID& object_id) {
-    auto message = new std::vector<uint8_t>();
-    SerializeObjectDeletionNotification(object_id, message);
-    return std::unique_ptr<AsyncObjectNotificationWriteBuffer>(
-        new AsyncObjectNotificationWriteBuffer(message));
-  }
+//   static std::unique_ptr<AsyncObjectNotificationWriteBuffer> MakeDeletion(
+//       const ObjectID& object_id) {
+//     auto message = new std::vector<uint8_t>();
+//     SerializeObjectDeletionNotification(object_id, message);
+//     return std::unique_ptr<AsyncObjectNotificationWriteBuffer>(
+//         new AsyncObjectNotificationWriteBuffer(message));
+//   }
 
-  static std::unique_ptr<AsyncObjectNotificationWriteBuffer> MakeReady(
-      const ObjectID& object_id, const ObjectTableEntry& entry) {
-    auto message = new std::vector<uint8_t>();
-    SerializeObjectSealedNotification(object_id, entry, message);
-    return std::unique_ptr<AsyncObjectNotificationWriteBuffer>(
-        new AsyncObjectNotificationWriteBuffer(message));
-  }
+//   static std::unique_ptr<AsyncObjectNotificationWriteBuffer> MakeReady(
+//       const ObjectID& object_id, const ObjectTableEntry& entry) {
+//     auto message = new std::vector<uint8_t>();
+//     SerializeObjectSealedNotification(object_id, entry, message);
+//     return std::unique_ptr<AsyncObjectNotificationWriteBuffer>(
+//         new AsyncObjectNotificationWriteBuffer(message));
+//   }
 
-  void ToBuffers(std::vector<asio::const_buffer>& message_buffers) override {
-    message_buffers.push_back(asio::buffer(&size, sizeof(size)));
-    message_buffers.push_back(asio::buffer(*notification_msg));
-  }
+//   void ToBuffers(std::vector<asio::const_buffer>& message_buffers) override {
+//     message_buffers.push_back(asio::buffer(&size, sizeof(size)));
+//     message_buffers.push_back(asio::buffer(*notification_msg));
+//   }
 
-  std::unique_ptr<std::vector<uint8_t>> notification_msg;
-  int64_t size;
+//   std::unique_ptr<std::vector<uint8_t>> notification_msg;
+//   int64_t size;
 
- protected:
-  explicit AsyncObjectNotificationWriteBuffer(std::vector<uint8_t>* message) {
-    // Serialize the object.
-    notification_msg.reset(message);
-    size = message->size();
-    AsyncWriteBuffer::handler_ =
-        [](const error_code& status) -> AsyncWriteCallbackCode {
-      auto errno_ = status.value();
-      if (!errno_) {
-        return AsyncWriteCallbackCode::OK;
-      }
-      if (errno_ == EAGAIN || errno_ == EWOULDBLOCK || errno_ == EINTR) {
-        ARROW_LOG(DEBUG) << "The socket's send buffer is full, so we are caching this "
-                            "notification and will send it later.";
-        ARROW_LOG(WARNING) << "Blocked unexpectly when sending message async.";
-        return AsyncWriteCallbackCode::OK;
-      } else {
-        ARROW_LOG(WARNING) << "Failed to send notification to client.";
-        if (errno_ == EPIPE) {
-          return AsyncWriteCallbackCode::DISCONNECT;
-        }
-        return AsyncWriteCallbackCode::UNKNOWN_ERROR;
-      }
-    };
-  }
-};
+//  protected:
+//   explicit AsyncObjectNotificationWriteBuffer(std::vector<uint8_t>* message) {
+//     // Serialize the object.
+//     notification_msg.reset(message);
+//     size = message->size();
+//     AsyncWriteBuffer::handler_ =
+//         [](const error_code& status) -> AsyncWriteCallbackCode {
+//       auto errno_ = status.value();
+//       if (!errno_) {
+//         return AsyncWriteCallbackCode::OK;
+//       }
+//       if (errno_ == EAGAIN || errno_ == EWOULDBLOCK || errno_ == EINTR) {
+//         ARROW_LOG(DEBUG) << "The socket's send buffer is full, so we are caching this "
+//                             "notification and will send it later.";
+//         ARROW_LOG(WARNING) << "Blocked unexpectly when sending message async.";
+//         return AsyncWriteCallbackCode::OK;
+//       } else {
+//         ARROW_LOG(WARNING) << "Failed to send notification to client.";
+//         if (errno_ == EPIPE) {
+//           return AsyncWriteCallbackCode::DISCONNECT;
+//         }
+//         return AsyncWriteCallbackCode::UNKNOWN_ERROR;
+//       }
+//     };
+//   }
+// };
 
 Status ClientConnection::SendFd(int fd) {
   // Only send the file descriptor if it hasn't been sent (see analogous
@@ -321,23 +322,25 @@ Status ClientConnection::SendFd(int fd) {
   return Status::OK();
 }
 
-void ClientConnection::SendObjectDeletionAsync(const ObjectID& object_id) {
-  auto raw_ptr = AsyncObjectNotificationWriteBuffer::MakeDeletion(object_id).release();
-  auto write_buffer =
-      std::unique_ptr<AsyncWriteBuffer>(static_cast<AsyncWriteBuffer*>(raw_ptr));
-  // Attempt to send a notification about this object ID.
-  WriteBufferAsync(std::move(write_buffer));
-}
+//  TODO(kunshang): Not supported for now
+// void ClientConnection::SendObjectDeletionAsync(const ObjectID& object_id) {
+//   auto raw_ptr = AsyncObjectNotificationWriteBuffer::MakeDeletion(object_id).release();
+//   auto write_buffer =
+//       std::unique_ptr<AsyncWriteBuffer>(static_cast<AsyncWriteBuffer*>(raw_ptr));
+//   // Attempt to send a notification about this object ID.
+//   WriteBufferAsync(std::move(write_buffer));
+// }
 
-void ClientConnection::SendObjectReadyAsync(const ObjectID& object_id,
-                                            const ObjectTableEntry& entry) {
-  auto raw_ptr =
-      AsyncObjectNotificationWriteBuffer::MakeReady(object_id, entry).release();
-  auto write_buffer =
-      std::unique_ptr<AsyncWriteBuffer>(static_cast<AsyncWriteBuffer*>(raw_ptr));
-  // Attempt to send a notification about this object ID.
-  WriteBufferAsync(std::move(write_buffer));
-}
+//  TODO(kunshang): Not supported for now
+// void ClientConnection::SendObjectReadyAsync(const ObjectID& object_id,
+//                                             const ObjectTableEntry& entry) {
+//   auto raw_ptr =
+//       AsyncObjectNotificationWriteBuffer::MakeReady(object_id, entry).release();
+//   auto write_buffer =
+//       std::unique_ptr<AsyncWriteBuffer>(static_cast<AsyncWriteBuffer*>(raw_ptr));
+//   // Attempt to send a notification about this object ID.
+//   WriteBufferAsync(std::move(write_buffer));
+// }
 
 }  // namespace io
 }  // namespace plasma

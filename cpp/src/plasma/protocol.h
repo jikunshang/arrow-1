@@ -67,8 +67,9 @@ Status ReadGetDebugStringReply(const uint8_t* data, size_t size,
 
 /* Plasma Create message functions. */
 
-Status SendCreateRequest(int sock, ObjectID object_id, bool evict_if_full,
-                         int64_t data_size, int64_t metadata_size, int device_num);
+Status SendCreateRequest(const std::shared_ptr<ClientConnection>& client,
+                         ObjectID object_id, bool evict_if_full,int64_t data_size,
+                         int64_t metadata_size, int device_num);
 
 Status ReadCreateRequest(const uint8_t* data, size_t size, ObjectID* object_id,
                          bool* evict_if_full, int64_t* data_size, int64_t* metadata_size,
@@ -88,6 +89,7 @@ Status SendCreateAndSealRequest(int sock, const ObjectID& object_id, bool evict_
 Status ReadCreateAndSealRequest(const uint8_t* data, size_t size, ObjectID* object_id,
                                 bool* evict_if_full, std::string* object_data,
                                 std::string* metadata, std::string* digest);
+
 // // TODO(suquark): Replace raw socket with client handle.
 // Status SendCreateAndSealBatchRequest(int sock, const std::vector<ObjectID>& object_ids,
 //                                      bool evict_if_full,
@@ -107,11 +109,10 @@ Status ReadCreateAndSealBatchRequest(const uint8_t* data, size_t size,
 
 Status ReadCreateAndSealReply(const uint8_t* data, size_t size);
 
+// TODO: Replace raw socket with client handle.
 Status SendCreateAndSealBatchReply(int sock, PlasmaError error);
 
 Status ReadCreateAndSealBatchReply(const uint8_t* data, size_t size);
-
-Status ReadCreateAndSealReply(const uint8_t* data, size_t size);
 
 Status SendAbortRequest(const std::shared_ptr<ServerConnection>& client,
                         ObjectID object_id);

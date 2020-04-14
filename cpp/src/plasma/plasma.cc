@@ -15,6 +15,8 @@
 // specific language governing permissions and limitations
 // under the License.
 
+#include "arrow/util/logging.h"
+
 #include "plasma/plasma.h"
 #include "plasma/common_generated.h"
 #include "plasma/common.h"
@@ -50,34 +52,36 @@ int WarnIfSigpipe(int status, int client_sock) {
  * \return The object info buffer. It is the caller's responsibility to free
  *         this buffer with "delete" after it has been used.
  */
-std::unique_ptr<uint8_t[]> CreateObjectInfoBuffer(fb::ObjectInfoT* object_info) {
-  flatbuffers::FlatBufferBuilder fbb;
-  auto message = fb::CreateObjectInfo(fbb, object_info);
-  fbb.Finish(message);
-  auto notification =
-      std::unique_ptr<uint8_t[]>(new uint8_t[sizeof(int64_t) + fbb.GetSize()]);
-  *(reinterpret_cast<int64_t*>(notification.get())) = fbb.GetSize();
-  memcpy(notification.get() + sizeof(int64_t), fbb.GetBufferPointer(), fbb.GetSize());
-  return notification;
-}
+//  TODO(kunshang): Not supported for now
+// std::unique_ptr<uint8_t[]> CreateObjectInfoBuffer(fb::ObjectInfoT* object_info) {
+//   flatbuffers::FlatBufferBuilder fbb;
+//   auto message = fb::CreateObjectInfo(fbb, object_info);
+//   fbb.Finish(message);
+//   auto notification =
+//       std::unique_ptr<uint8_t[]>(new uint8_t[sizeof(int64_t) + fbb.GetSize()]);
+//   *(reinterpret_cast<int64_t*>(notification.get())) = fbb.GetSize();
+//   memcpy(notification.get() + sizeof(int64_t), fbb.GetBufferPointer(), fbb.GetSize());
+//   return notification;
+// }
 
-std::unique_ptr<uint8_t[]> CreatePlasmaNotificationBuffer(
-    std::vector<fb::ObjectInfoT>& object_info) {
-  flatbuffers::FlatBufferBuilder fbb;
-  std::vector<flatbuffers::Offset<plasma::flatbuf::ObjectInfo>> info;
-  for (size_t i = 0; i < object_info.size(); ++i) {
-    info.push_back(fb::CreateObjectInfo(fbb, &object_info[i]));
-  }
+//  TODO(kunshang): Not supported for now
+// std::unique_ptr<uint8_t[]> CreatePlasmaNotificationBuffer(
+//     std::vector<fb::ObjectInfoT>& object_info) {
+//   flatbuffers::FlatBufferBuilder fbb;
+//   std::vector<flatbuffers::Offset<plasma::flatbuf::ObjectInfo>> info;
+//   for (size_t i = 0; i < object_info.size(); ++i) {
+//     info.push_back(fb::CreateObjectInfo(fbb, &object_info[i]));
+//   }
 
-  auto info_array = fbb.CreateVector(info);
-  auto message = fb::CreatePlasmaNotification(fbb, info_array);
-  fbb.Finish(message);
-  auto notification =
-      std::unique_ptr<uint8_t[]>(new uint8_t[sizeof(int64_t) + fbb.GetSize()]);
-  *(reinterpret_cast<int64_t*>(notification.get())) = fbb.GetSize();
-  memcpy(notification.get() + sizeof(int64_t), fbb.GetBufferPointer(), fbb.GetSize());
-  return notification;
-}
+//   auto info_array = fbb.CreateVector(info);
+//   auto message = fb::CreatePlasmaNotification(fbb, info_array);
+//   fbb.Finish(message);
+//   auto notification =
+//       std::unique_ptr<uint8_t[]>(new uint8_t[sizeof(int64_t) + fbb.GetSize()]);
+//   *(reinterpret_cast<int64_t*>(notification.get())) = fbb.GetSize();
+//   memcpy(notification.get() + sizeof(int64_t), fbb.GetBufferPointer(), fbb.GetSize());
+//   return notification;
+// }
 
 ObjectTableEntry* GetObjectTableEntry(PlasmaStoreInfo* store_info,
                                       const ObjectID& object_id) {

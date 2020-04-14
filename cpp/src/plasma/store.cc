@@ -558,8 +558,6 @@ void PlasmaStore::ReleaseObject(const ObjectID& object_id,
 // Check if an object is present.
 ObjectStatus PlasmaStore::ContainsObject(const ObjectID& object_id,
 					 const std::shared_ptr<ClientConnection>& client) {
-  auto tic = std::chrono::steady_clock::now();
-
   auto entry = GetObjectTableEntry(&store_info_, object_id);
   ObjectStatus status = ObjectStatus::OBJECT_NOT_FOUND;
 
@@ -591,10 +589,6 @@ ObjectStatus PlasmaStore::ContainsObject(const ObjectID& object_id,
     }
     entry->mtx.unlock();
   }
-
-  auto toc = std::chrono::steady_clock::now();
-  std::chrono::duration<double> time_ = toc - tic;
-  ARROW_LOG(DEBUG)<<"Contain takes " << time_.count() * 1000 << " ms";
   return status;
 }
 
