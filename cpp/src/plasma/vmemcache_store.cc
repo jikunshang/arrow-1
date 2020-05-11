@@ -91,6 +91,7 @@ Status VmemcacheStore::Connect(const std::string& endpoint) {
     ARROW_LOG(DEBUG) << "initial vmemcache success!";
   }
   srand((unsigned int)time(NULL));
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // try not use lambda function
   putThreadPools[0]->enqueue([&]() {
