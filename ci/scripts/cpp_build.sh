@@ -47,8 +47,8 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
   pushd /tmp/vmemcache
     mkdir build && cd build
     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/
-    make --ignore -j($nproc)
-    make install --ignore -j($nproc)
+    make --ignore -j$(nproc)
+    make install --ignore -j$(nproc)
   popd
 fi
 
