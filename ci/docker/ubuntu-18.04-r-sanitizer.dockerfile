@@ -28,6 +28,7 @@ RUN apt-get update -y -q && \
       gcc \
       git \
       libbenchmark-dev \
+      libnuma-dev \
       libboost-filesystem-dev \
       libboost-regex-dev \
       libboost-system-dev \

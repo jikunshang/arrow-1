@@ -51,6 +51,7 @@ RUN apt-get update -y -q && \
         gdb \
         git \
         libbenchmark-dev \
+        libnuma-dev \
         libboost-filesystem-dev \
         libboost-regex-dev \
         libboost-system-dev \

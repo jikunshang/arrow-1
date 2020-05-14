@@ -31,6 +31,7 @@ RUN apt-get update -y -q && \
         gcc \
         gdb \
         git \
+        libnuma-dev \
         libbz2-dev \
         libgoogle-glog-dev \
         libsnappy-dev \

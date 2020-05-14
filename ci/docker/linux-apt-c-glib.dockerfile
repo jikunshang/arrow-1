@@ -26,6 +26,7 @@ RUN apt-get update -y -q && \
         libgirepository1.0-dev \
         libglib2.0-doc \
         luarocks \
+        libnuma-dev \
         pkg-config \
         ruby-dev && \
     if [ "$(lsb_release --codename --short)" = "xenial" ]; then \

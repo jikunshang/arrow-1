@@ -41,6 +41,7 @@ RUN apt-get update -y -q && \
         gcc \
         gdb \
         git \
+        libnuma-dev \
         libboost-all-dev \
         libbrotli-dev \
         libbz2-dev \
