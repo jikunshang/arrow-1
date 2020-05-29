@@ -841,10 +841,10 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
                                          const uint8_t* message_data) {
   auto message_type_value = static_cast<MessageType>(message_type);
   ObjectID object_id;
-
-  auto tic = std::chrono::steady_clock::now();
-  // Process the different types of requests.
-  switch (message_type_value) {
+  pool->enqueue([&] () {
+    auto tic = std::chrono::steady_clock::now();
+    // Process the different types of requests.
+    switch (message_type_value) {
     case MessageType::PlasmaCreateRequest: {
       bool evict_if_full;
       int64_t data_size;
@@ -1045,9 +1045,12 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
     default:
       // This code should be unreachable.
       ARROW_CHECK(0);
-  }
-  auto toc = std::chrono::steady_clock::now();
-  process_total_time += (toc - tic);
+    }
+    auto toc = std::chrono::steady_clock::now();
+    process_total_time += (toc - tic);
+    return Status::OK();
+  });
+
   // Listen for more messages.
   client->ProcessMessages();
   return Status::OK();

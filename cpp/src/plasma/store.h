@@ -32,6 +32,8 @@
 #include "plasma/protocol.h"
 #include "plasma/quota_aware_policy.h"
 
+#include "plasma/threadPool.h"
+
 namespace arrow {
 class Status;
 }  // namespace arrow
@@ -260,6 +262,8 @@ class PlasmaStore {
   io::PlasmaAcceptor acceptor_;
   /// The stream to listen on for new clients.
   io::PlasmaStream stream_;
+
+  ThreadPool *pool = new ThreadPool(4);
 };
 
 }  // namespace plasma
