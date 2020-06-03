@@ -74,9 +74,9 @@ void SetMallocGranularity(int value);
 struct GetRequest {
   GetRequest(asio::io_context& io_context,
              const std::shared_ptr<ClientConnection>& client,
-             const std::vector<ObjectID>& object_ids)
+             const std::vector<ObjectID>& object_ids_)
       : client(client),
-        object_ids(object_ids.begin(), object_ids.end()),
+        object_ids(object_ids_.begin(), object_ids_.end()),
         objects(object_ids.size()),
         num_satisfied(0),
         timer_(io_context) {
@@ -160,7 +160,7 @@ PlasmaStore::PlasmaStore(asio::io_context& io_context, std::string directory,
   }
   store_info_.directory = directory;
   store_info_.hugepages_enabled = hugepages_enabled;
-  store_info_.objects.reserve(50000);
+  store_info_.objects.reserve(100000); //FIXME: Not thread safe when need resize
 #ifdef PLASMA_CUDA
   auto maybe_manager = CudaDeviceManager::Instance();
   DCHECK_OK(maybe_manager.status());
@@ -976,11 +976,15 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
       RETURN_NOT_OK(SendAbortReply(client, object_id));
     } break;
     case MessageType::PlasmaGetRequest: {
-      auto res = pool->enqueue( [&, message_data, message_size, client] () {
+      char * message = new char[message_size];
+      std::memcpy(message, message_data, message_size);
+      auto res = pool->enqueue( [&, message, message_size, client] () {
       std::vector<ObjectID> object_ids;
       int64_t timeout_ms;
-      RETURN_NOT_OK(ReadGetRequest(message_data, message_size, object_ids, &timeout_ms));
+      RETURN_NOT_OK(ReadGetRequest((uint8_t*)message, message_size, object_ids, &timeout_ms));
       RETURN_NOT_OK(ProcessGetRequest(client, object_ids, timeout_ms));
+      delete[] message;
+      return Status::OK();
       });
 
     } break;

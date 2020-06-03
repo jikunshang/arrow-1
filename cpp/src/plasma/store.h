@@ -263,7 +263,7 @@ class PlasmaStore {
   /// The stream to listen on for new clients.
   io::PlasmaStream stream_;
 
-  ThreadPool *pool = new ThreadPool(4);
+  ThreadPool *pool = new ThreadPool(16);
 };
 
 }  // namespace plasma
