@@ -841,7 +841,6 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
                                          const uint8_t* message_data) {
   auto message_type_value = static_cast<MessageType>(message_type);
   ObjectID object_id;
-  // pool->enqueue([&] () {
   auto tic = std::chrono::steady_clock::now();
   // Process the different types of requests.
   switch (message_type_value) {
@@ -1055,8 +1054,6 @@ Status PlasmaStore::ProcessClientMessage(const std::shared_ptr<ClientConnection>
   }
   auto toc = std::chrono::steady_clock::now();
   process_total_time += (toc - tic);
-  // return Status::OK();
-  // });
 
   // Listen for more messages.
   client->ProcessMessages();
