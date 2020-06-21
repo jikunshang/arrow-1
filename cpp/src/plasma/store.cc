@@ -160,7 +160,7 @@ PlasmaStore::PlasmaStore(asio::io_context& io_context, std::string directory,
   }
   store_info_.directory = directory;
   store_info_.hugepages_enabled = hugepages_enabled;
-  store_info_.objects.reserve(50000);
+  store_info_.objects.reserve(200000); //FIXME: try to use a thread safe hashmap
 #ifdef PLASMA_CUDA
   auto maybe_manager = CudaDeviceManager::Instance();
   DCHECK_OK(maybe_manager.status());
